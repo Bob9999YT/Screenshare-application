@@ -18,7 +18,7 @@ It can run up to a resolution of 1920x1080 (HD).
 **A: Admittedly yeah this was generated using AI. I dont really know how to code in python so this application itself is AI. However most of the roblox game is coded by myself (I only know how to script in luau)**
 
 ## Installation
-Download the [latest release](https://google.com) and run the .exe file.
+Download the [latest release](https://github.com/Bob9999YT/Screenshare-application/releases/tag/v1.00) and run the .exe file.
 
 You can also manually install this if you would wish pressing the green "code" button and installing as a zip and running the following commands in your command prompt:
 ```
