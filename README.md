@@ -22,7 +22,7 @@ It can run up to a resolution of 1920x1080 (HD).
 You need python 3.7+ to run this (but id recommend the latest version) 
 You can install that [here](https://www.python.org/downloads/ )
 
-You also need clouflared too (It tries to download this in the application itself however this will likely fail)
+You also need clouflared too
 You can install that [here](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) and this should be named as "
 cloudflared-windows-amd64.exe"
 
