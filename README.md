@@ -23,7 +23,7 @@ You need python 3.7+ to run this (but id recommend the latest version)
 You can install that [here](https://www.python.org/downloads/ )
 
 You also need clouflared too (It tries to download this in the application itself however this will likely fail)
-You can install that [here]([https://www.python.org/downloads/](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) ) and this should be named as "
+You can install that [here](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) and this should be named as "
 cloudflared-windows-amd64.exe"
 
 ## Installation
