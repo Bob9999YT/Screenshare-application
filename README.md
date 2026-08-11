@@ -6,7 +6,7 @@
 
 ## Info
 
-This is a application to give the URL need to showcase your PC's screenshare in the roblox game "Screenshare".
+This is a application to give the URL needed to showcase your PC's screenshare in the roblox game "Screenshare".
 It can run up to a resolution of 1920x1080 (HD).
 
 ## Frequently asked questions
