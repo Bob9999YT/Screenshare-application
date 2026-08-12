@@ -20,7 +20,7 @@ It can run up to a resolution of 1920x1080 (HD).
 ## Requirements
 
 You need cloudflared to run this app, and you have to rename the .exe file to "cloudflared" for it to work
-You can install that [here](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) and this should be named as "cloudflared-windows-amd64.exe"
+You can install that [here](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) and this should be named as "cloudflared-windows-amd64.exe" on the website
 
 ## Installation
 Download the [latest release](https://github.com/Bob9999YT/Screenshare-application/releases/tag/v1.00) create a folder with the .exe file, and cloudflared.exe and run the screenshare application.
