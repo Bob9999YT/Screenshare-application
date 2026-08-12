@@ -19,7 +19,7 @@ It can run up to a resolution of 1920x1080 (HD).
 
 ## Requirements
 
-You need cloudflared to run this app, and you have to rename it to "cloudflared" for it to work
+You need cloudflared to run this app, and you have to rename the .exe file to "cloudflared" for it to work
 You can install that [here](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) and this should be named as "cloudflared-windows-amd64.exe"
 
 ## Installation
