@@ -12,7 +12,7 @@ It can run up to a resolution of 1920x1080 (HD).
 ## Frequently asked questions
 
 **Q: is this malware**
-**A: No, the source can be easily viewed and will never have anything of the sort. Just make sure you got it from this github repo by the user "Bob9999YT"**
+**A: No, the source code can be easily viewed and will never have anything of the sort. Just make sure you got it from this github repo by the user "Bob9999YT"**
 
 **Q: is this vibe coded?**
 **A: Admittedly yeah this was generated using AI. I dont really know how to code in python so this application itself is AI. However most of the roblox game is coded by myself (I only know how to script in luau)**
