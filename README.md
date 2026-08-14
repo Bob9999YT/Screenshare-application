@@ -1,8 +1,14 @@
+# Screenshare application
+
 > [!CAUTION]
 > The one official application to use is this github repo (make sure its made by "Bob9999YT"). Eventually there will be a website to host the download to the same application
 
 > [!IMPORTANT]
 > This only works on windows as on now, however ports to macOS, linux and possibly even a android phone port are planned.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/d01f0c45-c5aa-4161-b9d6-43c1edef8eb3" width="477" height="646" alt="Screenshot 2026-08-13 220546" />
+</p>
 
 ## Info
 
@@ -19,8 +25,8 @@ It can run up to a resolution of 1920x1080 (HD).
 
 ## Requirements
 
-You need cloudflared to run this app, and you have to rename the .exe file to "cloudflared" for it to work
-You can install that [here](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) and this should be named as "cloudflared-windows-amd64.exe" on the website
+You need cloudflared to run this app, and you have to rename the .exe file to "cloudflared" for it to work.
+You can install that [here](https://github.com/cloudflare/cloudflared/releases/tag/2026.7.3) and this should be named as "cloudflared-windows-amd64.exe" on the website.
 
 ## Installation
 Download the [latest release](https://github.com/Bob9999YT/Screenshare-application/releases/tag/v1.00) create a folder with the .exe file, and cloudflared.exe and run the screenshare application.
