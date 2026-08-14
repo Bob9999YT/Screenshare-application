@@ -48,6 +48,23 @@ def app_dir():
 
 
 APP_DIR = app_dir()
+
+# Tell Windows this process handles its own DPI scaling. Without this,
+# Tkinter windows (especially frozen PyInstaller .exe builds) can render
+# as an unmovable "ghost" content window plus a second blank window that
+# follows the cursor when dragged, because Windows is bitmap-scaling the
+# window and the compositor doesn't redraw it correctly. This must run
+# before any Tk() window is created.
+if platform.system() == "Windows":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PROCESS_SYSTEM_DPI_AWARE
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
 CLOUDFLARED_PATH = os.path.join(
     APP_DIR, "cloudflared.exe" if platform.system() == "Windows" else "cloudflared"
 )
@@ -71,7 +88,15 @@ CLOUDFLARED_DOWNLOAD_URLS = {
 # --------------------------------------------------------------------------
 
 APP_NAME = "ScreenShareApp"
+APP_VERSION = "1.00"
 APP_ID_PATH = os.path.join(APP_DIR, "app_id.txt")
+
+# --------------------------------------------------------------------------
+# Update checking (GitHub Releases)
+# --------------------------------------------------------------------------
+
+UPDATE_REPO = "Bob9999YT/Screenshare-application"
+UPDATE_API_URL = f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest"
 
 
 def load_or_create_app_id():
@@ -393,6 +418,7 @@ def snapshot():
         json.dumps(
             {
                 "app": APP_NAME,
+                "app_version": APP_VERSION,
                 "app_id": APP_ID,
                 "image": image,
                 "width": cfg["output_width"],
@@ -508,23 +534,154 @@ TUNNEL = TunnelManager()
 
 
 # --------------------------------------------------------------------------
+# Update checking / self-update
+#
+# Checks the GitHub Releases API for this repo. If a newer tag_name is
+# found and a matching platform asset is attached to the release, we can
+# download it and (when running as a frozen exe) replace the currently
+# running exe in place and relaunch -- all without the user manually
+# downloading anything.
+#
+# NOTE: a running exe can't overwrite its own file on Windows while it's
+# open, so the swap is done by a tiny helper script that waits for this
+# process to exit, then moves the new file into place and restarts it.
+# --------------------------------------------------------------------------
+
+def _version_tuple(v):
+    v = (v or "").strip().lstrip("vV")
+    parts = []
+    for piece in v.split("."):
+        digits = "".join(ch for ch in piece if ch.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts) or (0,)
+
+
+def _pick_release_asset(assets):
+    system = platform.system()
+    for a in assets or []:
+        name = (a.get("name") or "").lower()
+        if system == "Windows" and name.endswith(".exe"):
+            return a
+        if system == "Darwin" and ("mac" in name or "darwin" in name):
+            return a
+        if system == "Linux" and "linux" in name:
+            return a
+    return None
+
+
+def check_for_update():
+    """
+    Hits the GitHub releases API. Returns a dict:
+      {available, current_version, latest_version, download_url, notes}
+    Raises on network/parsing errors -- callers should catch and log.
+    """
+    req = urllib.request.Request(
+        UPDATE_API_URL,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": f"{APP_NAME}/{APP_VERSION}",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+
+    tag = str(data.get("tag_name", "")).strip()
+    if not tag:
+        raise RuntimeError("Latest release has no tag_name")
+
+    asset = _pick_release_asset(data.get("assets"))
+
+    return {
+        "available": _version_tuple(tag) > _version_tuple(APP_VERSION),
+        "current_version": APP_VERSION,
+        "latest_version": tag,
+        "download_url": asset.get("browser_download_url") if asset else None,
+        "notes": str(data.get("body") or "")[:2000],
+    }
+
+
+def apply_update(download_url):
+    """
+    Downloads the new build. If running as a frozen exe, replaces the
+    current exe in place and relaunches it live. If running as a plain
+    script, downloads the new file next to app.py and returns its path
+    instead, since a script can't safely swap out its own interpreter.
+    """
+    if not download_url:
+        raise RuntimeError("No downloadable asset found for this platform")
+
+    if not getattr(sys, "frozen", False):
+        dest = os.path.join(APP_DIR, os.path.basename(download_url))
+        urllib.request.urlretrieve(download_url, dest)
+        return {"applied_live": False, "path": dest}
+
+    current_exe = sys.executable
+    new_path = current_exe + ".new"
+    urllib.request.urlretrieve(download_url, new_path)
+
+    if not os.path.isfile(new_path) or os.path.getsize(new_path) < 1024:
+        raise RuntimeError("Downloaded update looks incomplete")
+
+    pid = os.getpid()
+    system = platform.system()
+
+    if system == "Windows":
+        script_path = current_exe + "_update.bat"
+        script = (
+            "@echo off\r\n"
+            ":wait\r\n"
+            "ping 127.0.0.1 -n 2 >nul\r\n"
+            f'tasklist /fi "PID eq {pid}" | find "{pid}" >nul\r\n'
+            "if not errorlevel 1 goto wait\r\n"
+            f'move /y "{new_path}" "{current_exe}"\r\n'
+            f'start "" "{current_exe}"\r\n'
+            'del "%~f0"\r\n'
+        )
+        with open(script_path, "w") as f:
+            f.write(script)
+        subprocess.Popen(
+            ["cmd", "/c", script_path],
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+        )
+    else:
+        script_path = current_exe + "_update.sh"
+        script = (
+            "#!/bin/sh\n"
+            f"while kill -0 {pid} 2>/dev/null; do sleep 0.5; done\n"
+            f'mv -f "{new_path}" "{current_exe}"\n'
+            f'chmod +x "{current_exe}"\n'
+            f'"{current_exe}" &\n'
+            'rm -- "$0"\n'
+        )
+        with open(script_path, "w") as f:
+            f.write(script)
+        os.chmod(script_path, 0o755)
+        subprocess.Popen(["/bin/sh", script_path], start_new_session=True)
+
+    return {"applied_live": True, "path": current_exe}
+
+
+# --------------------------------------------------------------------------
 # GUI
 # --------------------------------------------------------------------------
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Screen Share")
-        self.geometry("480x620")
+        self.title(f"Screen Share v{APP_VERSION}")
+        self.geometry("480x680")
         self.resizable(False, False)
 
         self.stop_event = threading.Event()
         self.flask_thread = None
+        self._latest_update = None  # set by _check_for_updates when one is found
 
         self._build_ui()
         self._start_server()
+        log(f"[app] version {APP_VERSION}")
         self.after(100, self._poll_log)
         self.after(100, self._poll_approval_queue)
+        self.after(1500, lambda: self._check_for_updates(silent=True))
 
     # ---------------- UI layout ----------------
 
@@ -708,6 +865,27 @@ class App(tk.Tk):
             side="left", padx=4
         )
 
+        # ---- Updates ----
+        update_frame = ttk.LabelFrame(self, text="Updates")
+        update_frame.pack(fill="x", **pad)
+
+        self.update_status_var = tk.StringVar(value=f"Version {APP_VERSION}")
+        ttk.Label(update_frame, textvariable=self.update_status_var).pack(
+            anchor="w", padx=8, pady=(6, 2)
+        )
+
+        update_btn_row = ttk.Frame(update_frame)
+        update_btn_row.pack(fill="x", padx=8, pady=(0, 8))
+        ttk.Button(
+            update_btn_row, text="Check for Updates",
+            command=lambda: self._check_for_updates(silent=False),
+        ).pack(side="left", padx=(0, 6))
+        self.install_update_btn = ttk.Button(
+            update_btn_row, text="Install Update", state="disabled",
+            command=self._install_update,
+        )
+        self.install_update_btn.pack(side="left")
+
         # ---- Log ----
         log_frame = ttk.LabelFrame(self, text="Log")
         log_frame.pack(fill="both", expand=True, **pad)
@@ -811,6 +989,84 @@ class App(tk.Tk):
     def _copy(self, text):
         self.clipboard_clear()
         self.clipboard_append(text)
+
+    # ---------------- updates ----------------
+
+    def _check_for_updates(self, silent=True):
+        def worker():
+            try:
+                result = check_for_update()
+            except Exception as e:
+                log(f"[update] check failed: {e}")
+                if not silent:
+                    self.after(0, lambda: messagebox.showerror(
+                        "Update check failed", str(e)
+                    ))
+                return
+
+            if result["available"]:
+                self._latest_update = result
+                msg = f"Update available: v{result['latest_version']} (you have v{APP_VERSION})"
+                log(f"[update] {msg}")
+                self.after(0, lambda: self.update_status_var.set(msg))
+                self.after(0, lambda: self.install_update_btn.configure(state="normal"))
+                if not result["download_url"]:
+                    log("[update] no matching download asset found for this platform")
+                if not silent:
+                    self.after(0, lambda: messagebox.showinfo("Update available", msg))
+            else:
+                msg = f"Up to date (v{APP_VERSION})"
+                log(f"[update] {msg}")
+                self.after(0, lambda: self.update_status_var.set(msg))
+                if not silent:
+                    self.after(0, lambda: messagebox.showinfo("No update", msg))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _install_update(self):
+        result = self._latest_update
+        if not result or not result.get("available"):
+            return
+        if not result.get("download_url"):
+            messagebox.showerror(
+                "Can't install", "No downloadable build was found for your platform."
+            )
+            return
+
+        if not messagebox.askyesno(
+            "Install update",
+            f"Download and install v{result['latest_version']} now?\n\n"
+            f"{'The app will restart automatically.' if getattr(sys, 'frozen', False) else 'This is running from source, so the new build will just be downloaded next to app.py.'}",
+        ):
+            return
+
+        self.install_update_btn.configure(state="disabled")
+        self.update_status_var.set(f"Downloading v{result['latest_version']}...")
+        log(f"[update] downloading v{result['latest_version']}...")
+
+        def worker():
+            try:
+                outcome = apply_update(result["download_url"])
+            except Exception as e:
+                log(f"[update] install failed: {e}")
+                self.after(0, lambda: messagebox.showerror("Update failed", str(e)))
+                self.after(0, lambda: self.install_update_btn.configure(state="normal"))
+                return
+
+            if outcome["applied_live"]:
+                log("[update] downloaded -- restarting to apply...")
+                self.after(0, self.destroy)
+                os._exit(0)  # helper script is waiting for this process to exit
+            else:
+                log(f"[update] downloaded to {outcome['path']} (run it manually to update)")
+                self.after(0, lambda: messagebox.showinfo(
+                    "Downloaded",
+                    f"New version downloaded to:\n{outcome['path']}\n\n"
+                    "Running from source, so it wasn't applied automatically.",
+                ))
+                self.after(0, lambda: self.install_update_btn.configure(state="normal"))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _poll_log(self):
         try:
