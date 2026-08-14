@@ -7,7 +7,7 @@
 > This only works on windows as on now, however ports to macOS, linux and possibly even a android phone port are planned.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/d01f0c45-c5aa-4161-b9d6-43c1edef8eb3" width="477" height="646" alt="Screenshot 2026-08-13 220546" />
+  <img src="https://github.com/user-attachments/assets/92ce6433-604f-4520-ad98-8771568f85cf" width="474" height="707" alt="Screenshot 2026-08-13 220546" />
 </p>
 
 ## Info
